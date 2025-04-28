@@ -1,8 +1,16 @@
-import * as React from 'react';
-import { useEffect, useState } from 'react';
-import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
-import { Surface, Text, List, ActivityIndicator, TextInput, Button } from 'react-native-paper';
-import { supabase } from '../lib/supabase';
+import * as React from "react";
+import { useEffect, useState } from "react";
+import { View, StyleSheet, Pressable, ScrollView } from "react-native";
+import {
+  Surface,
+  Text,
+  List,
+  ActivityIndicator,
+  TextInput,
+  Button,
+} from "react-native-paper";
+import { supabase } from "../lib/supabase";
+import ExerciseItem from "./ExerciseItem";
 
 interface Exercise {
   id: string;
@@ -19,7 +27,7 @@ interface Set {
   created_at: string;
 }
 
-export default function TodayExercises({ navigation }: { navigation: any }) {
+export default function TodaysWorkout({ navigation }: { navigation: any }) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [sets, setSets] = useState<Set[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,30 +42,30 @@ export default function TodayExercises({ navigation }: { navigation: any }) {
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
-      
-      console.log('Looking for workout between:', {
+
+      console.log("Looking for workout between:", {
         start: today.toISOString(),
-        end: tomorrow.toISOString()
+        end: tomorrow.toISOString(),
       });
-      
+
       // First get the workout for today
       const { data: workouts, error: workoutError } = await supabase
-        .from('workouts')
-        .select('id, scheduled_date')
-        .gte('scheduled_date', today.toISOString())
-        .lt('scheduled_date', tomorrow.toISOString());
-      
-      console.log('Workout query results:', { workouts, workoutError });
-      
+        .from("workouts")
+        .select("id, scheduled_date")
+        .gte("scheduled_date", today.toISOString())
+        .lt("scheduled_date", tomorrow.toISOString());
+
+      console.log("Workout query results:", { workouts, workoutError });
+
       if (workoutError) {
-        console.error('Error fetching workout:', workoutError);
-        setError('Failed to fetch workout');
+        console.error("Error fetching workout:", workoutError);
+        setError("Failed to fetch workout");
         setLoading(false);
         return;
       }
 
       if (!workouts || workouts.length === 0) {
-        console.log('No workout found for today');
+        console.log("No workout found for today");
         setExercises([]);
         setSets([]);
         setLoading(false);
@@ -65,20 +73,20 @@ export default function TodayExercises({ navigation }: { navigation: any }) {
       }
 
       const workoutId = workouts[0].id;
-      console.log('Found workout with ID:', workoutId);
+      console.log("Found workout with ID:", workoutId);
 
       // Get all sets for today's workout
       const { data: setsData, error: setsError } = await supabase
-        .from('sets')
-        .select('*')
-        .eq('workout_id', workoutId)
-        .order('created_at', { ascending: false });
+        .from("sets")
+        .select("*")
+        .eq("workout_id", workoutId)
+        .order("created_at", { ascending: false });
 
-      console.log('Sets query results:', { setsData, setsError });
+      console.log("Sets query results:", { setsData, setsError });
 
       if (setsError) {
-        console.error('Error fetching sets:', setsError);
-        setError('Failed to fetch sets');
+        console.error("Error fetching sets:", setsError);
+        setError("Failed to fetch sets");
         setSets([]);
         setExercises([]);
         setLoading(false);
@@ -88,23 +96,25 @@ export default function TodayExercises({ navigation }: { navigation: any }) {
       setSets(setsData || []);
 
       // Get unique exercise IDs
-      const exerciseIds = [...new Set(setsData?.map(set => set.exercise_id) || [])];
-      console.log('Unique exercise IDs:', exerciseIds);
+      const exerciseIds = [
+        ...new Set(setsData?.map((set) => set.exercise_id) || []),
+      ];
+      console.log("Unique exercise IDs:", exerciseIds);
 
       // Then fetch exercise details
       const { data: exercises, error: exercisesError } = await supabase
-        .from('exercises')
-        .select('id, name')
-        .in('id', exerciseIds);
+        .from("exercises")
+        .select("id, name")
+        .in("id", exerciseIds);
 
-      console.log('Exercises query results:', { exercises, exercisesError });
+      console.log("Exercises query results:", { exercises, exercisesError });
 
       if (exercisesError) {
-        console.error('Error fetching exercise details:', exercisesError);
-        setError('Failed to fetch exercise details');
+        console.error("Error fetching exercise details:", exercisesError);
+        setError("Failed to fetch exercise details");
         setExercises([]);
       } else {
-        console.log('Final exercises:', exercises);
+        console.log("Final exercises:", exercises);
         setExercises(exercises || []);
       }
       setLoading(false);
@@ -116,25 +126,25 @@ export default function TodayExercises({ navigation }: { navigation: any }) {
   const handleUpdateSet = async (set: Set) => {
     setLoading(true);
     const { error } = await supabase
-      .from('sets')
+      .from("sets")
       .update({
         reps: set.reps,
         weight_kg: set.weight_kg,
-        rpe: set.rpe
+        rpe: set.rpe,
       })
-      .eq('id', set.id);
+      .eq("id", set.id);
 
     if (error) {
-      console.error('Error updating set:', error);
-      setError('Failed to update set');
+      console.error("Error updating set:", error);
+      setError("Failed to update set");
     } else {
       setEditingSet(null);
       // Refresh the sets
       const { data: setsData } = await supabase
-        .from('sets')
-        .select('*')
-        .eq('workout_id', set.workout_id)
-        .order('created_at', { ascending: false });
+        .from("sets")
+        .select("*")
+        .eq("workout_id", set.workout_id)
+        .order("created_at", { ascending: false });
       setSets(setsData || []);
     }
     setLoading(false);
@@ -143,55 +153,60 @@ export default function TodayExercises({ navigation }: { navigation: any }) {
   const handleAddSet = async (exercise: Exercise) => {
     if (!sets.length) return;
     const workoutId = sets[0].workout_id;
-    
+
     setLoading(true);
-    const { error } = await supabase
-      .from('sets')
-      .insert([{
+    const { error } = await supabase.from("sets").insert([
+      {
         workout_id: workoutId,
         exercise_id: exercise.id,
         reps: 0,
         weight_kg: 0,
         rpe: null,
-        created_at: new Date().toISOString()
-      }]);
+        created_at: new Date().toISOString(),
+      },
+    ]);
 
     if (error) {
-      console.error('Error adding set:', error);
-      setError('Failed to add set');
+      console.error("Error adding set:", error);
+      setError("Failed to add set");
     } else {
       // Refresh the sets
       const { data: setsData } = await supabase
-        .from('sets')
-        .select('*')
-        .eq('workout_id', workoutId)
-        .order('created_at', { ascending: false });
+        .from("sets")
+        .select("*")
+        .eq("workout_id", workoutId)
+        .order("created_at", { ascending: false });
       setSets(setsData || []);
     }
     setLoading(false);
   };
 
   const getSetsForExercise = (exerciseId: string) => {
-    return sets.filter(set => set.exercise_id === exerciseId);
+    return sets.filter((set) => set.exercise_id === exerciseId);
   };
 
   const calculateExerciseVolume = (exerciseId: string) => {
     const exerciseSets = getSetsForExercise(exerciseId);
-    const totalVolume = exerciseSets.reduce((sum, set) => sum + (set.reps * set.weight_kg), 0);
+    const totalVolume = exerciseSets.reduce(
+      (sum, set) => sum + set.reps * set.weight_kg,
+      0
+    );
     const totalReps = exerciseSets.reduce((sum, set) => sum + set.reps, 0);
     const averageWeight = totalVolume / totalReps || 0;
-    
+
     return {
       totalVolume,
       totalReps,
       averageWeight,
-      setCount: exerciseSets.length
+      setCount: exerciseSets.length,
     };
   };
 
   return (
     <Surface style={styles.container} elevation={2}>
-      <Text variant="titleMedium" style={styles.title}>Today's Exercises</Text>
+      <Text variant="titleMedium" style={styles.title}>
+        Today's Workout
+      </Text>
       {loading ? (
         <ActivityIndicator animating={true} style={styles.loader} />
       ) : error ? (
@@ -200,74 +215,18 @@ export default function TodayExercises({ navigation }: { navigation: any }) {
         <Text style={styles.empty}>No exercises logged today</Text>
       ) : (
         <ScrollView>
-          {exercises.map((exercise) => {
-            const volume = calculateExerciseVolume(exercise.id);
-            return (
-              <View key={exercise.id} style={styles.exerciseContainer}>
-                <Text variant="titleSmall" style={styles.exerciseTitle}>{exercise.name}</Text>
-                <View style={styles.volumeContainer}>
-                  <Text style={styles.volumeText}>
-                    Volume: {volume.totalVolume.toFixed(0)}kg
-                  </Text>
-                  <Text style={styles.volumeText}>
-                    {volume.setCount} sets × {volume.totalReps} reps
-                  </Text>
-                  <Text style={styles.volumeText}>
-                    Avg: {volume.averageWeight.toFixed(1)}kg
-                  </Text>
-                </View>
-                {getSetsForExercise(exercise.id).map((set) => (
-                  <View key={set.id} style={styles.setContainer}>
-                    {editingSet?.id === set.id ? (
-                      <View style={styles.setInputs}>
-                        <TextInput
-                          label="Reps"
-                          value={editingSet.reps.toString()}
-                          onChangeText={(text) => setEditingSet({ ...editingSet, reps: parseInt(text) || 0 })}
-                          keyboardType="numeric"
-                          style={styles.input}
-                        />
-                        <TextInput
-                          label="Weight (kg)"
-                          value={editingSet.weight_kg.toString()}
-                          onChangeText={(text) => setEditingSet({ ...editingSet, weight_kg: parseFloat(text) || 0 })}
-                          keyboardType="numeric"
-                          style={styles.input}
-                        />
-                        <TextInput
-                          label="RPE"
-                          value={editingSet.rpe?.toString() || ''}
-                          onChangeText={(text) => setEditingSet({ ...editingSet, rpe: text ? parseFloat(text) : null })}
-                          keyboardType="numeric"
-                          style={styles.input}
-                        />
-                        <View style={styles.buttonRow}>
-                          <Button mode="outlined" onPress={() => setEditingSet(null)}>Cancel</Button>
-                          <Button mode="contained" onPress={() => handleUpdateSet(editingSet)}>Save</Button>
-                        </View>
-                      </View>
-                    ) : (
-                      <Pressable
-                        style={({ pressed }) => [styles.setItem, pressed && { opacity: 0.7 }]}
-                        onPress={() => setEditingSet(set)}
-                      >
-                        <Text>
-                          {set.reps} reps × {set.weight_kg}kg {set.rpe ? `@ RPE ${set.rpe}` : ''}
-                        </Text>
-                      </Pressable>
-                    )}
-                  </View>
-                ))}
-                <Button
-                  mode="outlined"
-                  onPress={() => handleAddSet(exercise)}
-                  style={styles.addButton}
-                >
-                  Add Set
-                </Button>
-              </View>
-            );
-          })}
+          {exercises.map((exercise) => (
+            <ExerciseItem
+              key={exercise.id}
+              exercise={exercise}
+              sets={sets}
+              editingSet={editingSet}
+              setEditingSet={setEditingSet}
+              handleUpdateSet={handleUpdateSet}
+              handleAddSet={handleAddSet}
+              calculateExerciseVolume={calculateExerciseVolume}
+            />
+          ))}
         </ScrollView>
       )}
     </Surface>
@@ -280,46 +239,46 @@ const styles = StyleSheet.create({
     padding: 16,
     margin: 16,
     width: 340,
-    maxWidth: '95%',
+    maxWidth: "95%",
   },
   title: {
     marginBottom: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
   exerciseContainer: {
     marginBottom: 24,
   },
   exerciseTitle: {
     marginBottom: 8,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   volumeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 8,
     paddingHorizontal: 8,
   },
   volumeText: {
     fontSize: 12,
-    color: '#BB86FC',
+    color: "#BB86FC",
   },
   setContainer: {
     marginBottom: 8,
   },
   setItem: {
     padding: 8,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: "#1E1E1E",
     borderRadius: 8,
   },
   setInputs: {
     gap: 8,
   },
   input: {
-    backgroundColor: '#1E1E1E',
+    backgroundColor: "#1E1E1E",
   },
   buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: 8,
   },
   addButton: {
@@ -329,13 +288,13 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   error: {
-    color: 'red',
-    textAlign: 'center',
+    color: "red",
+    textAlign: "center",
     marginVertical: 16,
   },
   empty: {
-    textAlign: 'center',
+    textAlign: "center",
     marginVertical: 16,
-    color: '#BB86FC',
+    color: "#BB86FC",
   },
-}); 
+});
