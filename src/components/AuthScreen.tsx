@@ -17,6 +17,9 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmationSent, setConfirmationSent] = useState(false);
+  const [showReset, setShowReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSent, setResetSent] = useState(false);
   const theme = useTheme();
 
   const handleAuth = async () => {
@@ -35,6 +38,15 @@ export default function AuthScreen() {
         setConfirmationSent(true);
       }
     }
+    setLoading(false);
+  };
+
+  const handleResetPassword = async () => {
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail);
+    if (error) setError(error.message);
+    else setResetSent(true);
     setLoading(false);
   };
 
@@ -74,6 +86,68 @@ export default function AuthScreen() {
                 setEmail("");
                 setPassword("");
               }}
+            >
+              Back to Login
+            </Button>
+          </>
+        ) : showReset ? (
+          <>
+            <Text
+              style={{
+                color: theme.colors.primary,
+                textAlign: "center",
+                marginBottom: 16,
+              }}
+            >
+              Enter your email to reset your password
+            </Text>
+            <TextInput
+              label="Email"
+              value={resetEmail}
+              onChangeText={setResetEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.input}
+              mode="flat"
+              theme={{
+                colors: {
+                  text: theme.colors.onSurface,
+                  placeholder: theme.colors.onSurfaceVariant,
+                },
+              }}
+              editable={!loading}
+            />
+            {resetSent && (
+              <Text
+                style={{
+                  color: theme.colors.primary,
+                  textAlign: "center",
+                  marginVertical: 8,
+                }}
+              >
+                If an account exists for {resetEmail}, a password reset email
+                has been sent.
+              </Text>
+            )}
+            {error && <HelperText type="error">{error}</HelperText>}
+            <Button
+              mode="contained"
+              onPress={handleResetPassword}
+              loading={loading}
+              disabled={!resetEmail || loading}
+              style={{ marginTop: 16 }}
+            >
+              Send Reset Email
+            </Button>
+            <Button
+              mode="text"
+              onPress={() => {
+                setShowReset(false);
+                setResetEmail("");
+                setResetSent(false);
+                setError(null);
+              }}
+              style={{ marginTop: 8 }}
             >
               Back to Login
             </Button>
@@ -131,6 +205,20 @@ export default function AuthScreen() {
                 ? "Need an account? Sign Up"
                 : "Already have an account? Login"}
             </Button>
+            {isLogin && (
+              <Button
+                mode="text"
+                onPress={() => {
+                  setShowReset(true);
+                  setResetEmail("");
+                  setResetSent(false);
+                  setError(null);
+                }}
+                style={{ marginTop: 8 }}
+              >
+                Forgot password?
+              </Button>
+            )}
           </>
         )}
       </Surface>
