@@ -16,6 +16,8 @@ import MainScreen from "./src/components/MainScreen";
 import ExerciseSelectScreen from "./src/components/ExerciseSelectScreen";
 import LogSetScreen from "./src/components/LogSetScreen";
 import { Picker } from "@react-native-picker/picker";
+import { supabase } from "./src/lib/supabase";
+import AuthScreen from "./src/components/AuthScreen";
 
 const Stack = createNativeStackNavigator();
 const TIME_OPTIONS = [30, 45, 60, 90, 120];
@@ -88,6 +90,8 @@ function TimerModal({
 }
 
 export default function App() {
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [session, setSession] = useState<any>(null);
   const [timerVisible, setTimerVisible] = useState(false);
   const [timerValue, setTimerValue] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
@@ -95,6 +99,23 @@ export default function App() {
   const [showDone, setShowDone] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const doneTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const initSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+      setSessionChecked(true);
+    };
+    initSession();
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, newSession) => {
+        setSession(newSession);
+      }
+    );
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     if (timerRunning && !timerPaused && timerValue > 0) {
@@ -136,6 +157,20 @@ export default function App() {
     setTimerValue(0);
     setShowDone(false);
   };
+
+  if (!sessionChecked) {
+    return null; // or splash screen
+  }
+
+  if (!session) {
+    return (
+      <PaperProvider theme={MD3DarkTheme}>
+        <SafeAreaProvider>
+          <AuthScreen />
+        </SafeAreaProvider>
+      </PaperProvider>
+    );
+  }
 
   return (
     <PaperProvider theme={MD3DarkTheme}>

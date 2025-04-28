@@ -11,6 +11,7 @@ import {
 } from "react-native-paper";
 import { supabase } from "../lib/supabase";
 import ExerciseItem from "./ExerciseItem";
+import { Picker } from "@react-native-picker/picker";
 
 interface Exercise {
   id: string;
@@ -33,6 +34,11 @@ export default function TodaysWorkout({ navigation }: { navigation: any }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingSet, setEditingSet] = useState<Set | null>(null);
+  const [showAddDropdown, setShowAddDropdown] = useState(false);
+  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     const fetchTodayExercises = async () => {
@@ -202,11 +208,67 @@ export default function TodaysWorkout({ navigation }: { navigation: any }) {
     };
   };
 
+  // Fetch all exercises for the dropdown when needed
+  const fetchAllExercises = async () => {
+    const { data, error } = await supabase.from("exercises").select("id, name");
+    if (!error && data) setAllExercises(data);
+  };
+
   return (
     <Surface style={styles.container} elevation={2}>
       <Text variant="titleMedium" style={styles.title}>
         Today's Workout
       </Text>
+      {showAddDropdown ? (
+        <View style={{ marginBottom: 16 }}>
+          <Picker
+            selectedValue={selectedExerciseId}
+            onValueChange={(itemValue) => setSelectedExerciseId(itemValue)}
+            style={{ backgroundColor: "#1E1E1E", color: "#fff" }}
+          >
+            <Picker.Item label="Select exercise..." value={null} />
+            {allExercises.map((ex) => (
+              <Picker.Item key={ex.id} label={ex.name} value={ex.id} />
+            ))}
+          </Picker>
+          <Button
+            mode="contained"
+            disabled={!selectedExerciseId}
+            onPress={() => {
+              const ex = allExercises.find((e) => e.id === selectedExerciseId);
+              if (ex && !exercises.some((e) => e.id === ex.id)) {
+                setExercises([...exercises, ex]);
+              }
+              setShowAddDropdown(false);
+              setSelectedExerciseId(null);
+            }}
+            style={{ marginTop: 8 }}
+          >
+            Add
+          </Button>
+          <Button
+            mode="text"
+            onPress={() => {
+              setShowAddDropdown(false);
+              setSelectedExerciseId(null);
+            }}
+            style={{ marginTop: 4 }}
+          >
+            Cancel
+          </Button>
+        </View>
+      ) : (
+        <Button
+          mode="contained"
+          style={{ marginBottom: 16 }}
+          onPress={async () => {
+            await fetchAllExercises();
+            setShowAddDropdown(true);
+          }}
+        >
+          Add Exercise
+        </Button>
+      )}
       {loading ? (
         <ActivityIndicator animating={true} style={styles.loader} />
       ) : error ? (
