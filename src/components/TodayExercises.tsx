@@ -238,9 +238,9 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: 16,
     padding: 16,
-    margin: 16,
-    width: 340,
-    maxWidth: "95%",
+    margin: 0,
+    marginHorizontal: 0,
+    alignSelf: 'stretch',
   },
   title: {
     marginBottom: 16,
