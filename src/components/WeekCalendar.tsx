@@ -16,36 +16,39 @@ export default function WeekCalendar({ navigation }: { navigation: any }) {
   });
 
   const handleDayPress = async (dateObj: Date) => {
-    const dateStr = dateObj.toDateString();
+    // Always use ISO string for midnight UTC
+    const dateMidnight = new Date(dateObj);
+    dateMidnight.setHours(0, 0, 0, 0);
+    const dateIso = dateMidnight.toISOString();
     try {
       // Try to find a workout for this date
       const user = supabase.auth.getUser ? (await supabase.auth.getUser()).data.user : null;
       const user_id = user ? user.id : null;
       if (!user_id) {
         console.error('WeekCalendar: No user_id found.');
-        navigation.navigate('CreateWorkout', { date: dateStr });
+        navigation.navigate('CreateWorkout', { date: dateIso });
         return;
       }
       const { data: workouts, error } = await supabase
         .from('workouts')
         .select('id')
         .eq('user_id', user_id)
-        .eq('scheduled_date', dateStr);
+        .eq('scheduled_date', dateIso);
       if (error) {
         console.error('WeekCalendar: Error fetching workout', error);
-        navigation.navigate('CreateWorkout', { date: dateStr });
+        navigation.navigate('CreateWorkout', { date: dateIso });
         return;
       }
       if (workouts && workouts.length > 0) {
-        console.log('WeekCalendar: Found workout for date', dateStr, workouts[0].id);
-        navigation.navigate('WorkoutDetail', { workoutId: workouts[0].id, date: dateStr });
+        console.log('WeekCalendar: Found workout for date', dateIso, workouts[0].id);
+        navigation.navigate('WorkoutDetail', { workoutId: workouts[0].id, date: dateIso });
       } else {
-        console.log('WeekCalendar: No workout found for date', dateStr);
-        navigation.navigate('CreateWorkout', { date: dateStr });
+        console.log('WeekCalendar: No workout found for date', dateIso);
+        navigation.navigate('CreateWorkout', { date: dateIso });
       }
     } catch (err) {
       console.error('WeekCalendar: Unexpected error', err);
-      navigation.navigate('CreateWorkout', { date: dateStr });
+      navigation.navigate('CreateWorkout', { date: dateIso });
     }
   };
 

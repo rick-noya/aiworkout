@@ -13,7 +13,6 @@ export default function CreateWorkoutScreen({ route, navigation }: { route: any;
     setLoading(true);
     setError(null);
     try {
-      // TODO: Replace with actual user ID from auth context if available
       const user = supabase.auth.getUser ? (await supabase.auth.getUser()).data.user : null;
       const user_id = user ? user.id : null;
       if (!user_id) {
@@ -22,10 +21,14 @@ export default function CreateWorkoutScreen({ route, navigation }: { route: any;
         console.error('CreateWorkoutScreen: No user_id found.');
         return;
       }
-      console.log('CreateWorkoutScreen: Creating workout for', { user_id, date });
+      // Always use ISO string for midnight UTC
+      const dateObj = new Date(date);
+      dateObj.setHours(0, 0, 0, 0);
+      const scheduledDate = dateObj.toISOString();
+      console.log('CreateWorkoutScreen: Creating workout for', { user_id, scheduledDate });
       const { data, error: insertError } = await supabase
         .from('workouts')
-        .insert([{ user_id, scheduled_date: date }])
+        .insert([{ user_id, scheduled_date: scheduledDate }])
         .select();
       if (insertError) {
         setError('Failed to create workout.');
@@ -34,7 +37,7 @@ export default function CreateWorkoutScreen({ route, navigation }: { route: any;
         return;
       }
       console.log('CreateWorkoutScreen: Workout created', data);
-      navigation.replace('ExerciseSelect', { date });
+      navigation.replace('ExerciseSelect', { date: scheduledDate });
     } catch (err) {
       setError('Unexpected error creating workout.');
       setLoading(false);

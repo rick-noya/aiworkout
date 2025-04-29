@@ -62,12 +62,16 @@ export default function WorkoutSummaryScreen({ route, navigation }: { route: any
         keyExtractor={item => item.id}
         renderItem={({ item }) => {
           const t = exerciseTargets[item.id] || {};
+          let displayWeight = t.target_weight;
+          if (displayWeight && units === 'lb') {
+            displayWeight = (parseFloat(displayWeight) / 0.45359237).toFixed(1);
+          }
           return (
             <View style={styles.exerciseRow}>
               <Text style={{ fontWeight: 'bold' }}>{item.name}</Text>
               <Text>Reps: {t.target_reps_min} - {t.target_reps_max}</Text>
-              <Text>Weight: {t.target_weight} {units}</Text>
-              <Text>RPE: {t.target_rpe} {units}</Text>
+              <Text>Weight: {displayWeight} {units}</Text>
+              <Text>RPE: {t.target_rpe}</Text>
             </View>
           );
         }}

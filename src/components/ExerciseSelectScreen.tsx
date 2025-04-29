@@ -55,25 +55,6 @@ export default function ExerciseSelectScreen({ route, navigation }: { route: any
   }, [units, unitsLoading]);
 
   useEffect(() => {
-    const fetchAllExercises = async () => {
-      const { data: exercisesData, error: exercisesError } = await supabase.from('exercises').select('id, name, muscle_group, primary_equipment');
-      if (exercisesError) {
-        setError('Failed to load exercises');
-        setExercises([]);
-        console.error('ExerciseSelectScreen: Exercises fetch error', exercisesError);
-      } else {
-        setExercises(exercisesData || []);
-        console.log('ExerciseSelectScreen: Loaded exercises', exercisesData);
-      }
-    };
-    if (editMode) {
-      setWorkoutId(navWorkoutId || null);
-      setSelectedExercises(navSelectedExercises || []);
-      setExerciseTargets(navExerciseTargets || {});
-      fetchAllExercises();
-      setLoading(false);
-      return;
-    }
     const fetchData = async () => {
       setLoading(true);
       setError(null);
@@ -87,11 +68,15 @@ export default function ExerciseSelectScreen({ route, navigation }: { route: any
           console.error('ExerciseSelectScreen: No user_id found.');
           return;
         }
+        // Always use ISO string for midnight UTC
+        const dateObj = new Date(date);
+        dateObj.setHours(0, 0, 0, 0);
+        const dateIso = dateObj.toISOString();
         const { data: workouts, error: workoutError } = await supabase
           .from('workouts')
           .select('id')
           .eq('user_id', user_id)
-          .eq('scheduled_date', date);
+          .eq('scheduled_date', dateIso);
         if (workoutError) {
           setError('Failed to fetch workout.');
           setLoading(false);
@@ -101,7 +86,7 @@ export default function ExerciseSelectScreen({ route, navigation }: { route: any
         if (!workouts || workouts.length === 0) {
           setError('No workout found for this date.');
           setLoading(false);
-          console.error('ExerciseSelectScreen: No workout found for date', date);
+          console.error('ExerciseSelectScreen: No workout found for date', dateIso);
           return;
         }
         setWorkoutId(workouts[0].id);
@@ -229,7 +214,11 @@ export default function ExerciseSelectScreen({ route, navigation }: { route: any
           return;
         }
         console.log('ExerciseSelectScreen: Successfully updated workout_exercises');
-        navigation.replace('WorkoutDetail', { workoutId, date });
+        // Always use ISO string for midnight UTC for navigation
+        const dateObj = new Date(date);
+        dateObj.setHours(0, 0, 0, 0);
+        const dateIso = dateObj.toISOString();
+        navigation.replace('WorkoutDetail', { workoutId, date: dateIso });
       } catch (err) {
         setError('Unexpected error updating workout exercises.');
         setSaving(false);
@@ -237,14 +226,14 @@ export default function ExerciseSelectScreen({ route, navigation }: { route: any
         return;
       }
       setSaving(false);
-      return;
+    } else {
+      navigation.navigate('WorkoutSummary', {
+        selectedExercises,
+        exerciseTargets,
+        workoutId,
+        date,
+      });
     }
-    navigation.navigate('WorkoutSummary', {
-      selectedExercises,
-      exerciseTargets,
-      workoutId,
-      date,
-    });
   };
 
   // Filtering logic for muscle_group, primary_equipment, and search

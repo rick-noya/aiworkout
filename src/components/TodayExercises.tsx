@@ -10,6 +10,8 @@ import {
   Button,
   Dialog,
   Portal,
+  Menu,
+  IconButton,
 } from "react-native-paper";
 import { supabase } from "../lib/supabase";
 import ExerciseItem from "./ExerciseItem";
@@ -40,6 +42,7 @@ export default function TodaysWorkout({ navigation }: { navigation: any }) {
   const { units, loading: unitsLoading } = useUnits();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   React.useEffect(() => {
     console.log('TodayExercises: units context', { units, unitsLoading });
@@ -51,16 +54,17 @@ export default function TodaysWorkout({ navigation }: { navigation: any }) {
       setError(null);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const dateStr = today.toDateString();
       const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setDate(today.getDate() + 1);
+      const todayIso = today.toISOString();
+      const tomorrowIso = tomorrow.toISOString();
 
       // Find today's workout
       const { data: workouts, error: workoutError } = await supabase
         .from('workouts')
         .select('id, scheduled_date')
-        .gte('scheduled_date', today.toISOString())
-        .lt('scheduled_date', tomorrow.toISOString());
+        .gte('scheduled_date', todayIso)
+        .lt('scheduled_date', tomorrowIso);
       if (workoutError) {
         setError('Failed to fetch workout');
         setLoading(false);
@@ -71,6 +75,7 @@ export default function TodaysWorkout({ navigation }: { navigation: any }) {
         setSets([]);
         setWorkoutId(null);
         setLoading(false);
+        console.log('TodayExercises: No workout found for today');
         return;
       }
       const workoutId = workouts[0].id;
@@ -100,6 +105,8 @@ export default function TodaysWorkout({ navigation }: { navigation: any }) {
       }
       setSets(setsData || []);
       setLoading(false);
+      console.log('TodayExercises: plannedExercises', planned);
+      console.log('TodayExercises: sets', setsData);
     };
     fetchTodayWorkout();
   }, []);
@@ -132,49 +139,58 @@ export default function TodaysWorkout({ navigation }: { navigation: any }) {
 
   return (
     <Surface style={styles.container} elevation={2}>
-      <Text variant="titleMedium" style={styles.title}>
-        Today's Workout
-      </Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text variant="titleMedium" style={styles.title}>
+          Today's Workout
+        </Text>
+        {workoutId && plannedExercises.length > 0 && (
+          <Menu
+            visible={menuVisible}
+            onDismiss={() => setMenuVisible(false)}
+            anchor={
+              <IconButton icon="cog" size={24} onPress={() => setMenuVisible(true)} accessibilityLabel="Workout options" />
+            }
+          >
+            <Menu.Item onPress={() => {
+              setMenuVisible(false);
+              const selectedExercises = plannedExercises.map(e => ({ id: e.exercise_id, name: e.exercises?.name || e.exercise_id }));
+              const exerciseTargets: Record<string, any> = {};
+              plannedExercises.forEach(e => {
+                exerciseTargets[e.exercise_id] = {
+                  target_reps_min: e.target_reps_min?.toString() || '',
+                  target_reps_max: e.target_reps_max?.toString() || '',
+                  target_weight: e.target_weight?.toString() || '',
+                  target_rpe_min: e.target_rpe_min?.toString() || '',
+                  target_rpe_max: e.target_rpe_max?.toString() || '',
+                };
+              });
+              navigation.navigate('ExerciseSelect', {
+                date: new Date().toISOString(),
+                workoutId,
+                editMode: true,
+                selectedExercises,
+                exerciseTargets,
+              });
+            }} title="Edit Workout" leadingIcon="pencil" />
+            <Menu.Item onPress={() => {
+              setMenuVisible(false);
+              setShowDeleteDialog(true);
+            }} title="Delete Workout" leadingIcon="delete" />
+          </Menu>
+        )}
+      </View>
       {workoutId && plannedExercises.length > 0 && (
-        <>
-          <Button mode="contained" style={{ marginBottom: 16 }} onPress={() => {
-            const selectedExercises = plannedExercises.map(e => ({ id: e.exercise_id, name: e.exercises?.name || e.exercise_id }));
-            const exerciseTargets: Record<string, any> = {};
-            plannedExercises.forEach(e => {
-              exerciseTargets[e.exercise_id] = {
-                target_reps_min: e.target_reps_min?.toString() || '',
-                target_reps_max: e.target_reps_max?.toString() || '',
-                target_weight: e.target_weight?.toString() || '',
-                target_rpe_min: e.target_rpe_min?.toString() || '',
-                target_rpe_max: e.target_rpe_max?.toString() || '',
-              };
-            });
-            navigation.navigate('ExerciseSelect', {
-              date: new Date().toDateString(),
-              workoutId,
-              editMode: true,
-              selectedExercises,
-              exerciseTargets,
-            });
-          }}>
-            Edit Workout
-          </Button>
-          <Button mode="contained" style={{ marginBottom: 16, backgroundColor: 'red' }} onPress={() => setShowDeleteDialog(true)}>
-            Delete Today's Workout
-          </Button>
-          <Portal>
-            <Dialog visible={showDeleteDialog} onDismiss={() => setShowDeleteDialog(false)}>
-              <Dialog.Title>Delete Today's Workout</Dialog.Title>
-              <Dialog.Content>
-                <Text>Are you sure you want to delete today's workout? This action cannot be undone.</Text>
-              </Dialog.Content>
-              <Dialog.Actions>
-                <Button onPress={() => setShowDeleteDialog(false)}>Cancel</Button>
-                <Button onPress={handleDeleteWorkout} loading={deleting} color="red">Delete</Button>
-              </Dialog.Actions>
-            </Dialog>
-          </Portal>
-        </>
+        <Button mode="contained" style={{ marginBottom: 16, marginTop: 8 }} onPress={() => {
+          // Start logging flow for the first exercise
+          const first = plannedExercises[0];
+          navigation.navigate('LogSet', {
+            workoutId,
+            exercise: { id: first.exercise_id, name: first.exercises?.name },
+            date: new Date().toISOString(),
+          });
+        }}>
+          Let's go!
+        </Button>
       )}
       {loading ? (
         <ActivityIndicator animating={true} style={styles.loader} />
@@ -185,39 +201,35 @@ export default function TodaysWorkout({ navigation }: { navigation: any }) {
       ) : (
         <ScrollView>
           {plannedExercises.map((item) => {
-            const setsForExercise = getSetsForExercise(item.exercise_id);
             const displayTargetWeight = units === 'lb'
               ? (parseFloat(item.target_weight) / 0.45359237).toFixed(1)
               : item.target_weight;
             return (
               <View key={item.exercise_id} style={styles.exerciseRow}>
                 <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{item.exercises?.name || item.exercise_id}</Text>
-                <Text>Target Reps: {item.target_reps_min} - {item.target_reps_max}</Text>
-                <Text>Target Weight: {displayTargetWeight} {units}</Text>
-                <Text>Target RPE: {item.target_rpe}</Text>
-                <Button mode="outlined" style={{ marginTop: 8 }} onPress={() => navigation.navigate('LogSet', { workoutId, exercise: { id: item.exercise_id, name: item.exercises?.name }, date: new Date().toDateString() })}>
-                  Log Sets
-                </Button>
-                {setsForExercise.length > 0 && (
-                  <View style={{ marginTop: 8 }}>
-                    <Text style={{ color: '#BB86FC' }}>Logged Sets:</Text>
-                    {setsForExercise.map((set) => {
-                      const displaySetWeight = units === 'lb'
-                        ? (set.weight_kg / 0.45359237).toFixed(1)
-                        : set.weight_kg.toFixed(1);
-                      return (
-                        <Text key={set.id} style={{ fontSize: 13 }}>
-                          {set.reps} reps × {displaySetWeight}{units}{set.rpe ? ` @ RPE ${set.rpe}` : ''}
-                        </Text>
-                      );
-                    })}
-                  </View>
-                )}
+                <Text style={{ color: '#BB86FC', fontSize: 14 }}>
+                  Target: {item.target_reps_min} - {item.target_reps_max} reps, {displayTargetWeight} {units}, RPE {item.target_rpe}
+                </Text>
               </View>
             );
           })}
+          <Text style={{ textAlign: 'center', marginTop: 8, color: '#BB86FC' }}>
+            {plannedExercises.length} exercise{plannedExercises.length !== 1 ? 's' : ''} planned
+          </Text>
         </ScrollView>
       )}
+      <Portal>
+        <Dialog visible={showDeleteDialog} onDismiss={() => setShowDeleteDialog(false)}>
+          <Dialog.Title>Delete Today's Workout</Dialog.Title>
+          <Dialog.Content>
+            <Text>Are you sure you want to delete today's workout? This action cannot be undone.</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowDeleteDialog(false)}>Cancel</Button>
+            <Button onPress={handleDeleteWorkout} loading={deleting} color="red">Delete</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </Surface>
   );
 }

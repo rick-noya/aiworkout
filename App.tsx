@@ -123,12 +123,14 @@ export default function App() {
   useEffect(() => {
     const initSession = async () => {
       const { data } = await supabase.auth.getSession();
+      console.log('App: Session check result', data);
       setSession(data.session);
       setSessionChecked(true);
     };
     initSession();
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
+      (event, newSession) => {
+        console.log('App: Auth state change', { event, newSession });
         setSession(newSession);
       }
     );
@@ -179,10 +181,12 @@ export default function App() {
   };
 
   if (!sessionChecked) {
+    console.log('App: Session not checked yet, showing splash/null');
     return null; // or splash screen
   }
 
   if (!session) {
+    console.log('App: No session found, showing Auth stack');
     return (
       <PaperProvider theme={MD3DarkTheme}>
         <SafeAreaProvider>
@@ -203,6 +207,7 @@ export default function App() {
     );
   }
 
+  console.log('App: Session found, showing Main stack');
   return (
     <PaperProvider theme={MD3DarkTheme}>
       <SafeAreaProvider>
