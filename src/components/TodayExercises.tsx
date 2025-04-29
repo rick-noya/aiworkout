@@ -33,7 +33,7 @@ interface Set {
   created_at: string;
 }
 
-export default function TodaysWorkout({ navigation }: { navigation: any }) {
+export default function TodaysWorkout({ onStart, onEdit, onDelete }: { onStart: () => void, onEdit?: () => void, onDelete?: () => void }) {
   const [plannedExercises, setPlannedExercises] = useState<any[]>([]);
   const [sets, setSets] = useState<Set[]>([]);
   const [loading, setLoading] = useState(true);
@@ -153,42 +153,17 @@ export default function TodaysWorkout({ navigation }: { navigation: any }) {
           >
             <Menu.Item onPress={() => {
               setMenuVisible(false);
-              const selectedExercises = plannedExercises.map(e => ({ id: e.exercise_id, name: e.exercises?.name || e.exercise_id }));
-              const exerciseTargets: Record<string, any> = {};
-              plannedExercises.forEach(e => {
-                exerciseTargets[e.exercise_id] = {
-                  target_reps_min: e.target_reps_min?.toString() || '',
-                  target_reps_max: e.target_reps_max?.toString() || '',
-                  target_weight: e.target_weight?.toString() || '',
-                  target_rpe_min: e.target_rpe_min?.toString() || '',
-                  target_rpe_max: e.target_rpe_max?.toString() || '',
-                };
-              });
-              navigation.navigate('ExerciseSelect', {
-                date: new Date().toISOString(),
-                workoutId,
-                editMode: true,
-                selectedExercises,
-                exerciseTargets,
-              });
+              if (onEdit) onEdit();
             }} title="Edit Workout" leadingIcon="pencil" />
             <Menu.Item onPress={() => {
               setMenuVisible(false);
-              setShowDeleteDialog(true);
+              if (onDelete) onDelete();
             }} title="Delete Workout" leadingIcon="delete" />
           </Menu>
         )}
       </View>
       {workoutId && plannedExercises.length > 0 && (
-        <Button mode="contained" style={{ marginBottom: 16, marginTop: 8 }} onPress={() => {
-          // Start logging flow for the first exercise
-          const first = plannedExercises[0];
-          navigation.navigate('LogSet', {
-            workoutId,
-            exercise: { id: first.exercise_id, name: first.exercises?.name },
-            date: new Date().toISOString(),
-          });
-        }}>
+        <Button mode="contained" style={{ marginBottom: 16, marginTop: 8 }} onPress={onStart}>
           Let's go!
         </Button>
       )}

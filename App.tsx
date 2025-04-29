@@ -12,7 +12,6 @@ import {
 } from "react-native-paper";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import MainScreen from "./src/components/MainScreen";
 import ExerciseSelectScreen from "./src/components/ExerciseSelectScreen";
 import LogSetScreen from "./src/components/LogSetScreen";
 import { Picker } from "@react-native-picker/picker";
@@ -26,6 +25,7 @@ import WorkoutSummaryScreen from "./src/components/WorkoutSummaryScreen";
 import WorkoutDetailScreen from "./src/components/WorkoutDetailScreen";
 import SettingsScreen from "./src/components/SettingsScreen";
 import { UnitsProvider } from "./src/components/UnitsContext";
+import MainTabNavigator from "./src/navigation/MainTabNavigator";
 
 const Stack = createNativeStackNavigator();
 const TIME_OPTIONS = [30, 45, 60, 90, 120];
@@ -281,7 +281,7 @@ export default function App() {
             >
               <Stack.Screen
                 name="Main"
-                component={MainScreen}
+                component={MainTabNavigator}
                 options={{ title: "AiWeightTrainer" }}
               />
               <Stack.Screen
