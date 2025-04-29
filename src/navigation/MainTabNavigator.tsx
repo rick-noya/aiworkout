@@ -3,6 +3,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View } from 'react-native';
 import { Icon } from 'react-native-paper';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 
 const Tab = createBottomTabNavigator();
 
@@ -31,7 +33,9 @@ export default function MainTabNavigator() {
       <Tab.Screen name="Workouts" component={Stub} />
       <Tab.Screen name="Add" component={Stub} />
       <Tab.Screen name="Library" component={Stub} />
-      <Tab.Screen name="Profile" component={Stub} />
+      <Tab.Screen name="Profile">
+        {() => <ProfileScreen />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 } 

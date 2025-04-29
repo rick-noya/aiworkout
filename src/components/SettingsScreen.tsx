@@ -5,6 +5,7 @@ import { Text, TextInput, Button, MD3DarkTheme, ActivityIndicator, RadioButton }
 import { supabase } from '../lib/supabase';
 import * as DocumentPicker from 'expo-document-picker';
 import Papa from 'papaparse';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function SettingsScreen({ navigation }: { navigation: any }) {
   const [username, setUsername] = useState('');
@@ -136,6 +137,21 @@ export default function SettingsScreen({ navigation }: { navigation: any }) {
     setImporting(false);
   };
 
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        console.log('SettingsScreen: Back pressed, navigating to Dashboard');
+        navigation.navigate('Main', { screen: 'Dashboard' });
+        return true;
+      };
+      const subscription = navigation.addListener('beforeRemove', (e: any) => {
+        e.preventDefault();
+        onBackPress();
+      });
+      return () => subscription();
+    }, [navigation])
+  );
+
   return (
     <View style={styles.container}>
       <Text variant="titleLarge" style={{ marginBottom: 16 }}>Settings</Text>
@@ -165,7 +181,10 @@ export default function SettingsScreen({ navigation }: { navigation: any }) {
             Import Workouts from CSV
           </Button>
           {importResult && <Text style={{ color: importResult.includes('error') || importResult.includes('failed') ? 'red' : 'green', marginTop: 8 }}>{importResult}</Text>}
-          <Button mode="outlined" onPress={() => navigation.goBack()} style={{ marginTop: 8 }}>
+          <Button mode="outlined" onPress={() => {
+            console.log('SettingsScreen: Back button pressed, navigating to Dashboard');
+            navigation.navigate('Main', { screen: 'Dashboard' });
+          }} style={{ marginTop: 8 }}>
             Back
           </Button>
         </>
