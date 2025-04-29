@@ -29,189 +29,73 @@ interface Set {
 }
 
 export default function TodaysWorkout({ navigation }: { navigation: any }) {
-  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [plannedExercises, setPlannedExercises] = useState<any[]>([]);
   const [sets, setSets] = useState<Set[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editingSet, setEditingSet] = useState<Set | null>(null);
-  const [showAddDropdown, setShowAddDropdown] = useState(false);
-  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
-  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
-    null
-  );
+  const [workoutId, setWorkoutId] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchTodayExercises = async () => {
+    const fetchTodayWorkout = async () => {
       setLoading(true);
       setError(null);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const dateStr = today.toDateString();
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      console.log("Looking for workout between:", {
-        start: today.toISOString(),
-        end: tomorrow.toISOString(),
-      });
-
-      // First get the workout for today
+      // Find today's workout
       const { data: workouts, error: workoutError } = await supabase
-        .from("workouts")
-        .select("id, scheduled_date")
-        .gte("scheduled_date", today.toISOString())
-        .lt("scheduled_date", tomorrow.toISOString());
-
-      console.log("Workout query results:", { workouts, workoutError });
-
+        .from('workouts')
+        .select('id, scheduled_date')
+        .gte('scheduled_date', today.toISOString())
+        .lt('scheduled_date', tomorrow.toISOString());
       if (workoutError) {
-        console.error("Error fetching workout:", workoutError);
-        setError("Failed to fetch workout");
+        setError('Failed to fetch workout');
         setLoading(false);
         return;
       }
-
       if (!workouts || workouts.length === 0) {
-        console.log("No workout found for today");
-        setExercises([]);
+        setPlannedExercises([]);
         setSets([]);
+        setWorkoutId(null);
         setLoading(false);
         return;
       }
-
       const workoutId = workouts[0].id;
-      console.log("Found workout with ID:", workoutId);
-
-      // Get all sets for today's workout
-      const { data: setsData, error: setsError } = await supabase
-        .from("sets")
-        .select("*")
-        .eq("workout_id", workoutId)
-        .order("created_at", { ascending: false });
-
-      console.log("Sets query results:", { setsData, setsError });
-
-      if (setsError) {
-        console.error("Error fetching sets:", setsError);
-        setError("Failed to fetch sets");
-        setSets([]);
-        setExercises([]);
+      setWorkoutId(workoutId);
+      // Fetch planned exercises/targets
+      const { data: planned, error: plannedError } = await supabase
+        .from('workout_exercises')
+        .select('exercise_id, target_reps_min, target_reps_max, target_weight, target_rpe_min, target_rpe_max, exercises(name)')
+        .eq('workout_id', workoutId);
+      if (plannedError) {
+        setError('Failed to fetch planned exercises');
         setLoading(false);
         return;
       }
-
-      setSets(setsData || []);
-
-      // Get unique exercise IDs
-      const exerciseIds = [
-        ...new Set(setsData?.map((set) => set.exercise_id) || []),
-      ];
-      console.log("Unique exercise IDs:", exerciseIds);
-
-      // Then fetch exercise details
-      const { data: exercises, error: exercisesError } = await supabase
-        .from("exercises")
-        .select("id, name")
-        .in("id", exerciseIds);
-
-      console.log("Exercises query results:", { exercises, exercisesError });
-
-      if (exercisesError) {
-        console.error("Error fetching exercise details:", exercisesError);
-        setError("Failed to fetch exercise details");
-        setExercises([]);
-      } else {
-        console.log("Final exercises:", exercises);
-        setExercises(exercises || []);
+      setPlannedExercises(planned || []);
+      // Fetch sets for today
+      const { data: setsData, error: setsError } = await supabase
+        .from('sets')
+        .select('*')
+        .eq('workout_id', workoutId)
+        .order('created_at', { ascending: false });
+      if (setsError) {
+        setError('Failed to fetch sets');
+        setSets([]);
+        setLoading(false);
+        return;
       }
+      setSets(setsData || []);
       setLoading(false);
     };
-
-    fetchTodayExercises();
+    fetchTodayWorkout();
   }, []);
-
-  const handleUpdateSet = async (set: Set) => {
-    setLoading(true);
-    const { error } = await supabase
-      .from("sets")
-      .update({
-        reps: set.reps,
-        weight_kg: set.weight_kg,
-        rpe: set.rpe,
-      })
-      .eq("id", set.id);
-
-    if (error) {
-      console.error("Error updating set:", error);
-      setError("Failed to update set");
-    } else {
-      setEditingSet(null);
-      // Refresh the sets
-      const { data: setsData } = await supabase
-        .from("sets")
-        .select("*")
-        .eq("workout_id", set.workout_id)
-        .order("created_at", { ascending: false });
-      setSets(setsData || []);
-    }
-    setLoading(false);
-  };
-
-  const handleAddSet = async (exercise: Exercise) => {
-    if (!sets.length) return;
-    const workoutId = sets[0].workout_id;
-
-    setLoading(true);
-    const { error } = await supabase.from("sets").insert([
-      {
-        workout_id: workoutId,
-        exercise_id: exercise.id,
-        reps: 0,
-        weight_kg: 0,
-        rpe: null,
-        created_at: new Date().toISOString(),
-      },
-    ]);
-
-    if (error) {
-      console.error("Error adding set:", error);
-      setError("Failed to add set");
-    } else {
-      // Refresh the sets
-      const { data: setsData } = await supabase
-        .from("sets")
-        .select("*")
-        .eq("workout_id", workoutId)
-        .order("created_at", { ascending: false });
-      setSets(setsData || []);
-    }
-    setLoading(false);
-  };
 
   const getSetsForExercise = (exerciseId: string) => {
     return sets.filter((set) => set.exercise_id === exerciseId);
-  };
-
-  const calculateExerciseVolume = (exerciseId: string) => {
-    const exerciseSets = getSetsForExercise(exerciseId);
-    const totalVolume = exerciseSets.reduce(
-      (sum, set) => sum + set.reps * set.weight_kg,
-      0
-    );
-    const totalReps = exerciseSets.reduce((sum, set) => sum + set.reps, 0);
-    const averageWeight = totalVolume / totalReps || 0;
-
-    return {
-      totalVolume,
-      totalReps,
-      averageWeight,
-      setCount: exerciseSets.length,
-    };
-  };
-
-  // Fetch all exercises for the dropdown when needed
-  const fetchAllExercises = async () => {
-    const { data, error } = await supabase.from("exercises").select("id, name");
-    if (!error && data) setAllExercises(data);
   };
 
   return (
@@ -219,76 +103,62 @@ export default function TodaysWorkout({ navigation }: { navigation: any }) {
       <Text variant="titleMedium" style={styles.title}>
         Today's Workout
       </Text>
-      {showAddDropdown ? (
-        <View style={{ marginBottom: 16 }}>
-          <Picker
-            selectedValue={selectedExerciseId}
-            onValueChange={(itemValue) => setSelectedExerciseId(itemValue)}
-            style={{ backgroundColor: "#1E1E1E", color: "#fff" }}
-          >
-            <Picker.Item label="Select exercise..." value={null} />
-            {allExercises.map((ex) => (
-              <Picker.Item key={ex.id} label={ex.name} value={ex.id} />
-            ))}
-          </Picker>
-          <Button
-            mode="contained"
-            disabled={!selectedExerciseId}
-            onPress={() => {
-              const ex = allExercises.find((e) => e.id === selectedExerciseId);
-              if (ex && !exercises.some((e) => e.id === ex.id)) {
-                setExercises([...exercises, ex]);
-              }
-              setShowAddDropdown(false);
-              setSelectedExerciseId(null);
-            }}
-            style={{ marginTop: 8 }}
-          >
-            Add
-          </Button>
-          <Button
-            mode="text"
-            onPress={() => {
-              setShowAddDropdown(false);
-              setSelectedExerciseId(null);
-            }}
-            style={{ marginTop: 4 }}
-          >
-            Cancel
-          </Button>
-        </View>
-      ) : (
-        <Button
-          mode="contained"
-          style={{ marginBottom: 16 }}
-          onPress={async () => {
-            await fetchAllExercises();
-            setShowAddDropdown(true);
-          }}
-        >
-          Add Exercise
+      {workoutId && plannedExercises.length > 0 && (
+        <Button mode="contained" style={{ marginBottom: 16 }} onPress={() => {
+          const selectedExercises = plannedExercises.map(e => ({ id: e.exercise_id, name: e.exercises?.name || e.exercise_id }));
+          const exerciseTargets: Record<string, any> = {};
+          plannedExercises.forEach(e => {
+            exerciseTargets[e.exercise_id] = {
+              target_reps_min: e.target_reps_min?.toString() || '',
+              target_reps_max: e.target_reps_max?.toString() || '',
+              target_weight: e.target_weight?.toString() || '',
+              target_rpe_min: e.target_rpe_min?.toString() || '',
+              target_rpe_max: e.target_rpe_max?.toString() || '',
+            };
+          });
+          navigation.navigate('ExerciseSelect', {
+            date: new Date().toDateString(),
+            workoutId,
+            editMode: true,
+            selectedExercises,
+            exerciseTargets,
+          });
+        }}>
+          Edit Workout
         </Button>
       )}
       {loading ? (
         <ActivityIndicator animating={true} style={styles.loader} />
       ) : error ? (
         <Text style={styles.error}>{error}</Text>
-      ) : exercises.length === 0 ? (
-        <Text style={styles.empty}>No exercises logged today</Text>
+      ) : plannedExercises.length === 0 ? (
+        <Text style={styles.empty}>No workout planned for today</Text>
       ) : (
         <ScrollView>
-          {exercises.map((exercise) => (
-            <ExerciseItem
-              key={exercise.id}
-              exercise={exercise}
-              sets={sets}
-              editingSet={editingSet}
-              setEditingSet={setEditingSet}
-              handleUpdateSet={handleUpdateSet}
-              handleAddSet={handleAddSet}
-              calculateExerciseVolume={calculateExerciseVolume}
-            />
-          ))}
+          {plannedExercises.map((item) => {
+            const setsForExercise = getSetsForExercise(item.exercise_id);
+            return (
+              <View key={item.exercise_id} style={styles.exerciseRow}>
+                <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{item.exercises?.name || item.exercise_id}</Text>
+                <Text>Target Reps: {item.target_reps_min} - {item.target_reps_max}</Text>
+                <Text>Target Weight: {item.target_weight} kg</Text>
+                <Text>Target RPE: {item.target_rpe_min} - {item.target_rpe_max}</Text>
+                <Button mode="outlined" style={{ marginTop: 8 }} onPress={() => navigation.navigate('LogSet', { workoutId, exercise: { id: item.exercise_id, name: item.exercises?.name }, date: new Date().toDateString() })}>
+                  Log Sets
+                </Button>
+                {setsForExercise.length > 0 && (
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={{ color: '#BB86FC' }}>Logged Sets:</Text>
+                    {setsForExercise.map((set) => (
+                      <Text key={set.id} style={{ fontSize: 13 }}>
+                        {set.reps} reps × {set.weight_kg}kg{set.rpe ? ` @ RPE ${set.rpe}` : ''}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+              </View>
+            );
+          })}
         </ScrollView>
       )}
     </Surface>
@@ -307,44 +177,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: "center",
   },
-  exerciseContainer: {
+  exerciseRow: {
     marginBottom: 24,
-  },
-  exerciseTitle: {
-    marginBottom: 8,
-    fontWeight: "bold",
-  },
-  volumeContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-    paddingHorizontal: 8,
-  },
-  volumeText: {
-    fontSize: 12,
-    color: "#BB86FC",
-  },
-  setContainer: {
-    marginBottom: 8,
-  },
-  setItem: {
-    padding: 8,
-    backgroundColor: "#1E1E1E",
+    backgroundColor: "#232323",
     borderRadius: 8,
-  },
-  setInputs: {
-    gap: 8,
-  },
-  input: {
-    backgroundColor: "#1E1E1E",
-  },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 8,
-  },
-  addButton: {
-    marginTop: 8,
+    padding: 12,
   },
   loader: {
     marginVertical: 16,

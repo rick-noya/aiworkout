@@ -1,23 +1,35 @@
 import * as React from 'react';
 import { useEffect, useState } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
-import { Text, TextInput, Button, MD3DarkTheme, List, ActivityIndicator } from 'react-native-paper';
+import { Text, TextInput, Button, MD3DarkTheme, List, ActivityIndicator, Dialog, Portal } from 'react-native-paper';
 import { supabase } from '../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 
 export default function LogSetScreen({ route, navigation }: { route: any; navigation: any }) {
-  const { exercise, date } = route.params;
+  const { exercise, date, workoutId: navWorkoutId } = route.params;
   const [reps, setReps] = useState('');
+  const [partialReps, setPartialReps] = useState('');
   const [weight, setWeight] = useState('');
   const [rpe, setRpe] = useState('');
   const [loading, setLoading] = useState(false);
   const [sets, setSets] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
-
-  // Find or create a workout for this date (for now, use date as unique key)
-  const [workoutId, setWorkoutId] = useState<string | null>(null);
+  const [workoutId, setWorkoutId] = useState<string | null>(navWorkoutId || null);
+  const [editingSetId, setEditingSetId] = useState<string | null>(null);
+  const [editReps, setEditReps] = useState('');
+  const [editPartialReps, setEditPartialReps] = useState('');
+  const [editWeight, setEditWeight] = useState('');
+  const [editRpe, setEditRpe] = useState('');
+  const [rpeError, setRpeError] = useState<string | null>(null);
+  const [editRpeError, setEditRpeError] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [setIdToDelete, setSetIdToDelete] = useState<string | null>(null);
 
   useEffect(() => {
+    if (navWorkoutId) {
+      setWorkoutId(navWorkoutId);
+      return;
+    }
     const fetchOrCreateWorkout = async () => {
       setLoading(true);
       setError(null);
@@ -49,7 +61,7 @@ export default function LogSetScreen({ route, navigation }: { route: any; naviga
       setLoading(false);
     };
     fetchOrCreateWorkout();
-  }, [date]);
+  }, [date, navWorkoutId]);
 
   useEffect(() => {
     if (!workoutId) return;
@@ -58,7 +70,7 @@ export default function LogSetScreen({ route, navigation }: { route: any; naviga
       setError(null);
       const { data, error } = await supabase
         .from('sets')
-        .select('id, reps, weight_kg, rpe, created_at')
+        .select('id, reps, partial_reps, weight_kg, rpe, created_at')
         .eq('workout_id', workoutId)
         .eq('exercise_id', exercise.id)
         .order('created_at', { ascending: false });
@@ -73,36 +85,158 @@ export default function LogSetScreen({ route, navigation }: { route: any; naviga
     fetchSets();
   }, [workoutId, exercise.id]);
 
+  const validateRpe = (value: string) => {
+    if (!value) return null;
+    const n = Number(value);
+    if (!Number.isInteger(n)) return 'RPE must be a whole number';
+    return null;
+  };
+
   const handleAddSet = async () => {
+    setRpeError(null);
     if (!workoutId || !reps || !weight) return;
+    if (rpe) {
+      const err = validateRpe(rpe);
+      if (err) {
+        setRpeError(err);
+        return;
+      }
+    }
     setLoading(true);
     setError(null);
-    const { error } = await supabase.from('sets').insert([
-      {
-        id: uuidv4(),
-        workout_id: workoutId,
-        exercise_id: exercise.id,
-        reps: parseInt(reps, 10),
-        weight_kg: parseFloat(weight),
-        rpe: rpe ? parseFloat(rpe) : null,
-        created_at: new Date().toISOString(),
-      },
-    ]);
-    if (error) {
-      setError('Failed to add set');
-    } else {
-      setReps('');
-      setWeight('');
-      setRpe('');
-      // Refresh sets
-      const { data } = await supabase
-        .from('sets')
-        .select('id, reps, weight_kg, rpe, created_at')
-        .eq('workout_id', workoutId)
-        .eq('exercise_id', exercise.id)
-        .order('created_at', { ascending: false });
-      setSets(data || []);
+    try {
+      const repsInt = parseInt(reps, 10);
+      const partialRepsInt = partialReps ? parseInt(partialReps, 10) : 0;
+      const weightFloat = parseFloat(weight);
+      const rpeInt = rpe ? parseInt(rpe, 10) : null;
+      const { error } = await supabase.from('sets').insert([
+        {
+          workout_id: workoutId,
+          exercise_id: exercise.id,
+          reps: repsInt,
+          partial_reps: partialRepsInt,
+          weight_kg: weightFloat,
+          rpe: rpeInt,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+      if (error) {
+        setError('Failed to add set');
+        console.error('LogSetScreen: Failed to add set', error);
+      } else {
+        setReps('');
+        setPartialReps('');
+        setWeight('');
+        setRpe('');
+        // Refresh sets
+        const { data } = await supabase
+          .from('sets')
+          .select('id, reps, partial_reps, weight_kg, rpe, created_at')
+          .eq('workout_id', workoutId)
+          .eq('exercise_id', exercise.id)
+          .order('created_at', { ascending: false });
+        setSets(data || []);
+        console.log('LogSetScreen: Set added successfully');
+      }
+    } catch (err) {
+      setError('Unexpected error adding set');
+      console.error('LogSetScreen: Unexpected error', err);
     }
+    setLoading(false);
+  };
+
+  const startEditSet = (set: any) => {
+    setEditingSetId(set.id);
+    setEditReps(set.reps?.toString() || '');
+    setEditPartialReps(set.partial_reps?.toString() || '');
+    setEditWeight(set.weight_kg?.toString() || '');
+    setEditRpe(set.rpe?.toString() || '');
+  };
+
+  const cancelEditSet = () => {
+    setEditingSetId(null);
+    setEditReps('');
+    setEditPartialReps('');
+    setEditWeight('');
+    setEditRpe('');
+  };
+
+  const handleUpdateSet = async (setId: string) => {
+    setEditRpeError(null);
+    setLoading(true);
+    setError(null);
+    if (editRpe) {
+      const err = validateRpe(editRpe);
+      if (err) {
+        setEditRpeError(err);
+        setLoading(false);
+        return;
+      }
+    }
+    try {
+      const repsInt = parseInt(editReps, 10);
+      const partialRepsInt = editPartialReps ? parseInt(editPartialReps, 10) : 0;
+      const weightFloat = parseFloat(editWeight);
+      const rpeInt = editRpe ? parseInt(editRpe, 10) : null;
+      const { error } = await supabase.from('sets').update({
+        reps: repsInt,
+        partial_reps: partialRepsInt,
+        weight_kg: weightFloat,
+        rpe: rpeInt,
+      }).eq('id', setId);
+      if (error) {
+        setError('Failed to update set');
+        console.error('LogSetScreen: Failed to update set', error);
+      } else {
+        cancelEditSet();
+        // Refresh sets
+        const { data } = await supabase
+          .from('sets')
+          .select('id, reps, partial_reps, weight_kg, rpe, created_at')
+          .eq('workout_id', workoutId)
+          .eq('exercise_id', exercise.id)
+          .order('created_at', { ascending: false });
+        setSets(data || []);
+        console.log('LogSetScreen: Set updated successfully');
+      }
+    } catch (err) {
+      setError('Unexpected error updating set');
+      console.error('LogSetScreen: Unexpected error', err);
+    }
+    setLoading(false);
+  };
+
+  const confirmDeleteSet = (setId: string) => {
+    setSetIdToDelete(setId);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteSet = async () => {
+    if (!setIdToDelete) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const { error } = await supabase.from('sets').delete().eq('id', setIdToDelete);
+      if (error) {
+        setError('Failed to delete set');
+        console.error('LogSetScreen: Failed to delete set', error);
+      } else {
+        // Refresh sets
+        const { data } = await supabase
+          .from('sets')
+          .select('id, reps, partial_reps, weight_kg, rpe, created_at')
+          .eq('workout_id', workoutId)
+          .eq('exercise_id', exercise.id)
+          .order('created_at', { ascending: false });
+        setSets(data || []);
+        console.log('LogSetScreen: Set deleted successfully');
+      }
+    } catch (err) {
+      setError('Unexpected error deleting set');
+      console.error('LogSetScreen: Unexpected error', err);
+    }
+    setShowDeleteDialog(false);
+    setSetIdToDelete(null);
     setLoading(false);
   };
 
@@ -115,8 +249,17 @@ export default function LogSetScreen({ route, navigation }: { route: any; naviga
         label="Reps"
         value={reps}
         onChangeText={setReps}
-        keyboardType="numeric"
+        keyboardType="number-pad"
         style={{ marginBottom: 8 }}
+        placeholder="e.g. 8"
+      />
+      <TextInput
+        label="Partial Reps"
+        value={partialReps}
+        onChangeText={setPartialReps}
+        keyboardType="number-pad"
+        style={{ marginBottom: 8 }}
+        placeholder="e.g. 1"
       />
       <TextInput
         label="Weight (kg)"
@@ -132,6 +275,7 @@ export default function LogSetScreen({ route, navigation }: { route: any; naviga
         keyboardType="numeric"
         style={{ marginBottom: 8 }}
       />
+      {rpeError && <Text style={{ color: 'red', marginBottom: 8 }}>{rpeError}</Text>}
       <Button mode="contained" onPress={handleAddSet} disabled={loading || !reps || !weight} style={{ marginBottom: 16 }}>
         Add Set
       </Button>
@@ -142,17 +286,73 @@ export default function LogSetScreen({ route, navigation }: { route: any; naviga
         data={sets}
         keyExtractor={item => item.id}
         renderItem={({ item }) => (
-          <List.Item
-            title={`Reps: ${item.reps}, Weight: ${item.weight_kg}kg${item.rpe ? `, RPE: ${item.rpe}` : ''}`}
-            description={item.created_at ? new Date(item.created_at).toLocaleTimeString() : ''}
-            left={props => <List.Icon {...props} icon="check" />}
-          />
+          editingSetId === item.id ? (
+            <View style={{ padding: 8, backgroundColor: '#232323', borderRadius: 8, marginBottom: 8 }}>
+              <TextInput
+                label="Reps"
+                value={editReps}
+                onChangeText={setEditReps}
+                keyboardType="number-pad"
+                style={{ marginBottom: 4 }}
+              />
+              <TextInput
+                label="Partial Reps"
+                value={editPartialReps}
+                onChangeText={setEditPartialReps}
+                keyboardType="number-pad"
+                style={{ marginBottom: 4 }}
+              />
+              <TextInput
+                label="Weight (kg)"
+                value={editWeight}
+                onChangeText={setEditWeight}
+                keyboardType="numeric"
+                style={{ marginBottom: 4 }}
+              />
+              <TextInput
+                label="RPE (optional)"
+                value={editRpe}
+                onChangeText={setEditRpe}
+                keyboardType="numeric"
+                style={{ marginBottom: 4 }}
+              />
+              {editRpeError && <Text style={{ color: 'red', marginBottom: 4 }}>{editRpeError}</Text>}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                <Button mode="outlined" onPress={cancelEditSet}>Cancel</Button>
+                <Button mode="contained" onPress={() => handleUpdateSet(item.id)} loading={loading}>Save</Button>
+              </View>
+            </View>
+          ) : (
+            <List.Item
+              title={`Reps: ${item.reps}${item.partial_reps ? ` + ${item.partial_reps} partial` : ''}, Weight: ${item.weight_kg}kg${item.rpe ? `, RPE: ${item.rpe}` : ''}`}
+              description={item.created_at ? new Date(item.created_at).toLocaleTimeString() : ''}
+              left={props => <List.Icon {...props} icon="check" />}
+              right={props => (
+                <View style={{ flexDirection: 'row' }}>
+                  <Button mode="text" onPress={() => startEditSet(item)}>Edit</Button>
+                  <Button mode="text" onPress={() => confirmDeleteSet(item.id)} color="red">Delete</Button>
+                </View>
+              )}
+            />
+          )
         )}
         ListEmptyComponent={<Text>No sets logged yet.</Text>}
       />
       <Button mode="outlined" style={{ marginTop: 24 }} onPress={() => navigation.goBack()}>
         Back
       </Button>
+      <Portal>
+        <Dialog visible={showDeleteDialog} onDismiss={() => setShowDeleteDialog(false)}>
+          <Dialog.Title>Delete Set</Dialog.Title>
+          <Dialog.Content>
+            <Text>Are you sure you want to delete this set? This action cannot be undone.</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowDeleteDialog(false)}>Cancel</Button>
+            <Button onPress={handleDeleteSet} color="red">Delete</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </View>
   );
 }

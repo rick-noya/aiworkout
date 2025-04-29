@@ -8,8 +8,7 @@ export default function EditTargetsScreen({ route, navigation }: { route: any; n
   const [target_reps_min, setTargetRepsMin] = useState(targets.target_reps_min?.toString() || '');
   const [target_reps_max, setTargetRepsMax] = useState(targets.target_reps_max?.toString() || '');
   const [target_weight, setTargetWeight] = useState(targets.target_weight?.toString() || '');
-  const [target_rpe_min, setTargetRpeMin] = useState(targets.target_rpe_min?.toString() || '');
-  const [target_rpe_max, setTargetRpeMax] = useState(targets.target_rpe_max?.toString() || '');
+  const [target_rpe, setTargetRpe] = useState(targets.target_rpe?.toString() || '');
   const [saving, setSaving] = useState(false);
 
   const handleSave = () => {
@@ -18,8 +17,7 @@ export default function EditTargetsScreen({ route, navigation }: { route: any; n
       target_reps_min,
       target_reps_max,
       target_weight,
-      target_rpe_min,
-      target_rpe_max,
+      target_rpe,
     };
     console.log('EditTargetsScreen: Saving targets', updatedTargets);
     if (onSave) {
@@ -55,16 +53,9 @@ export default function EditTargetsScreen({ route, navigation }: { route: any; n
         style={styles.input}
       />
       <TextInput
-        label="RPE Min"
-        value={target_rpe_min}
-        onChangeText={setTargetRpeMin}
-        keyboardType="numeric"
-        style={styles.input}
-      />
-      <TextInput
-        label="RPE Max"
-        value={target_rpe_max}
-        onChangeText={setTargetRpeMax}
+        label="Target RPE"
+        value={target_rpe}
+        onChangeText={setTargetRpe}
         keyboardType="numeric"
         style={styles.input}
       />
