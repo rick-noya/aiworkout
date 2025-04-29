@@ -19,6 +19,7 @@ import { Picker } from "@react-native-picker/picker";
 import { supabase } from "./src/lib/supabase";
 import AuthScreen from "./src/components/AuthScreen";
 import ResetPasswordScreen from "./src/components/ResetPasswordScreen";
+import { Linking } from "react-native";
 
 const Stack = createNativeStackNavigator();
 const TIME_OPTIONS = [30, 45, 60, 90, 120];
@@ -90,6 +91,18 @@ function TimerModal({
   );
 }
 
+const linking = {
+  prefixes: ["exp://10.0.0.93:8081"],
+  config: {
+    screens: {
+      Main: "main",
+      ExerciseSelect: "exercise-select",
+      LogSet: "log-set",
+      ResetPassword: "reset-password",
+    },
+  },
+};
+
 export default function App() {
   const [sessionChecked, setSessionChecked] = useState(false);
   const [session, setSession] = useState<any>(null);
@@ -100,7 +113,6 @@ export default function App() {
   const [showDone, setShowDone] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const doneTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [resetPassword, setResetPassword] = useState(false);
 
   useEffect(() => {
     const initSession = async () => {
@@ -144,19 +156,6 @@ export default function App() {
     };
   }, [timerValue, timerRunning]);
 
-  useEffect(() => {
-    if (
-      session &&
-      session.user &&
-      session.user.email &&
-      session.user.aud === "authenticated" &&
-      session.user.email_confirmed_at === null &&
-      session.user.confirmation_sent_at
-    ) {
-      setResetPassword(true);
-    }
-  }, [session]);
-
   const handleTimerStart = (seconds: number) => {
     setTimerValue(seconds);
     setTimerRunning(true);
@@ -181,23 +180,18 @@ export default function App() {
     return (
       <PaperProvider theme={MD3DarkTheme}>
         <SafeAreaProvider>
-          <AuthScreen />
-        </SafeAreaProvider>
-      </PaperProvider>
-    );
-  }
-
-  if (resetPassword) {
-    return (
-      <PaperProvider theme={MD3DarkTheme}>
-        <SafeAreaProvider>
-          <ResetPasswordScreen
-            navigation={{
-              replace: () => {
-                setResetPassword(false);
-              },
-            }}
-          />
+          <NavigationContainer
+            linking={linking}
+            fallback={<Text>Loading...</Text>}
+          >
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="Auth" component={AuthScreen} />
+              <Stack.Screen
+                name="ResetPassword"
+                component={ResetPasswordScreen}
+              />
+            </Stack.Navigator>
+          </NavigationContainer>
         </SafeAreaProvider>
       </PaperProvider>
     );
@@ -206,7 +200,10 @@ export default function App() {
   return (
     <PaperProvider theme={MD3DarkTheme}>
       <SafeAreaProvider>
-        <NavigationContainer>
+        <NavigationContainer
+          linking={linking}
+          fallback={<Text>Loading...</Text>}
+        >
           <Stack.Navigator
             screenOptions={{
               header: (props) => (
@@ -284,6 +281,11 @@ export default function App() {
               name="LogSet"
               component={LogSetScreen}
               options={{ title: "Log Set" }}
+            />
+            <Stack.Screen
+              name="ResetPassword"
+              component={ResetPasswordScreen}
+              options={{ title: "Reset Password" }}
             />
           </Stack.Navigator>
         </NavigationContainer>
