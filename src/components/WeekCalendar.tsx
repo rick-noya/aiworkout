@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Surface, Text } from 'react-native-paper';
 import { View, StyleSheet, Pressable } from 'react-native';
+import { supabase } from '../lib/supabase';
 
 const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -14,6 +15,40 @@ export default function WeekCalendar({ navigation }: { navigation: any }) {
     return d;
   });
 
+  const handleDayPress = async (dateObj: Date) => {
+    const dateStr = dateObj.toDateString();
+    try {
+      // Try to find a workout for this date
+      const user = supabase.auth.getUser ? (await supabase.auth.getUser()).data.user : null;
+      const user_id = user ? user.id : null;
+      if (!user_id) {
+        console.error('WeekCalendar: No user_id found.');
+        navigation.navigate('CreateWorkout', { date: dateStr });
+        return;
+      }
+      const { data: workouts, error } = await supabase
+        .from('workouts')
+        .select('id')
+        .eq('user_id', user_id)
+        .eq('scheduled_date', dateStr);
+      if (error) {
+        console.error('WeekCalendar: Error fetching workout', error);
+        navigation.navigate('CreateWorkout', { date: dateStr });
+        return;
+      }
+      if (workouts && workouts.length > 0) {
+        console.log('WeekCalendar: Found workout for date', dateStr, workouts[0].id);
+        navigation.navigate('WorkoutDetail', { workoutId: workouts[0].id, date: dateStr });
+      } else {
+        console.log('WeekCalendar: No workout found for date', dateStr);
+        navigation.navigate('CreateWorkout', { date: dateStr });
+      }
+    } catch (err) {
+      console.error('WeekCalendar: Unexpected error', err);
+      navigation.navigate('CreateWorkout', { date: dateStr });
+    }
+  };
+
   return (
     <Surface style={styles.calendarSurface} elevation={2}>
       <View style={styles.calendarRow}>
@@ -23,7 +58,7 @@ export default function WeekCalendar({ navigation }: { navigation: any }) {
             <Pressable
               key={day}
               style={({ pressed }) => [styles.dayCell, pressed && { opacity: 0.7 }]}
-              onPress={() => navigation.navigate('ExerciseSelect', { date: weekDates[i].toDateString() })}
+              onPress={() => handleDayPress(weekDates[i])}
             >
               <Text variant="labelSmall" style={{ textAlign: 'center' }}>{day}</Text>
               <Text

@@ -20,6 +20,10 @@ import { supabase } from "./src/lib/supabase";
 import AuthScreen from "./src/components/AuthScreen";
 import ResetPasswordScreen from "./src/components/ResetPasswordScreen";
 import { Linking } from "react-native";
+import CreateWorkoutScreen from "./src/components/CreateWorkoutScreen";
+import EditTargetsScreen from "./src/components/EditTargetsScreen";
+import WorkoutSummaryScreen from "./src/components/WorkoutSummaryScreen";
+import WorkoutDetailScreen from "./src/components/WorkoutDetailScreen";
 
 const Stack = createNativeStackNavigator();
 const TIME_OPTIONS = [30, 45, 60, 90, 120];
@@ -273,6 +277,11 @@ export default function App() {
               options={{ title: "AiWeightTrainer" }}
             />
             <Stack.Screen
+              name="CreateWorkout"
+              component={CreateWorkoutScreen}
+              options={{ title: "Create Workout" }}
+            />
+            <Stack.Screen
               name="ExerciseSelect"
               component={ExerciseSelectScreen}
               options={{ title: "Select Exercise" }}
@@ -286,6 +295,21 @@ export default function App() {
               name="ResetPassword"
               component={ResetPasswordScreen}
               options={{ title: "Reset Password" }}
+            />
+            <Stack.Screen
+              name="EditTargets"
+              component={EditTargetsScreen}
+              options={{ title: "Edit Targets" }}
+            />
+            <Stack.Screen
+              name="WorkoutSummary"
+              component={WorkoutSummaryScreen}
+              options={{ title: "Workout Summary" }}
+            />
+            <Stack.Screen
+              name="WorkoutDetail"
+              component={WorkoutDetailScreen}
+              options={{ title: "Workout Details" }}
             />
           </Stack.Navigator>
         </NavigationContainer>
