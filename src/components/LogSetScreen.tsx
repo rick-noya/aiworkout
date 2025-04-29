@@ -4,6 +4,7 @@ import { View, StyleSheet, FlatList } from 'react-native';
 import { Text, TextInput, Button, MD3DarkTheme, List, ActivityIndicator, Dialog, Portal } from 'react-native-paper';
 import { supabase } from '../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { useUnits } from './UnitsContext';
 
 export default function LogSetScreen({ route, navigation }: { route: any; navigation: any }) {
   const { exercise, date, workoutId: navWorkoutId } = route.params;
@@ -24,6 +25,11 @@ export default function LogSetScreen({ route, navigation }: { route: any; naviga
   const [editRpeError, setEditRpeError] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [setIdToDelete, setSetIdToDelete] = useState<string | null>(null);
+  const { units, setUnits, loading: unitsLoading } = useUnits();
+
+  React.useEffect(() => {
+    console.log('LogSetScreen: units context', { units, unitsLoading });
+  }, [units, unitsLoading]);
 
   useEffect(() => {
     if (navWorkoutId) {
@@ -108,6 +114,8 @@ export default function LogSetScreen({ route, navigation }: { route: any; naviga
       const repsInt = parseInt(reps, 10);
       const partialRepsInt = partialReps ? parseInt(partialReps, 10) : 0;
       const weightFloat = parseFloat(weight);
+      const weightKg = units === 'lb' ? weightFloat * 0.45359237 : weightFloat;
+      console.log('LogSetScreen: Saving set with weight', { input: weight, units, weightKg });
       const rpeInt = rpe ? parseInt(rpe, 10) : null;
       const { error } = await supabase.from('sets').insert([
         {
@@ -115,7 +123,7 @@ export default function LogSetScreen({ route, navigation }: { route: any; naviga
           exercise_id: exercise.id,
           reps: repsInt,
           partial_reps: partialRepsInt,
-          weight_kg: weightFloat,
+          weight_kg: weightKg,
           rpe: rpeInt,
           created_at: new Date().toISOString(),
         },
@@ -149,7 +157,10 @@ export default function LogSetScreen({ route, navigation }: { route: any; naviga
     setEditingSetId(set.id);
     setEditReps(set.reps?.toString() || '');
     setEditPartialReps(set.partial_reps?.toString() || '');
-    setEditWeight(set.weight_kg?.toString() || '');
+    const displayWeight = units === 'lb'
+      ? (set.weight_kg / 0.45359237).toFixed(1)
+      : set.weight_kg?.toString() || '';
+    setEditWeight(displayWeight);
     setEditRpe(set.rpe?.toString() || '');
   };
 
@@ -177,11 +188,13 @@ export default function LogSetScreen({ route, navigation }: { route: any; naviga
       const repsInt = parseInt(editReps, 10);
       const partialRepsInt = editPartialReps ? parseInt(editPartialReps, 10) : 0;
       const weightFloat = parseFloat(editWeight);
+      const weightKg = units === 'lb' ? weightFloat * 0.45359237 : weightFloat;
+      console.log('LogSetScreen: Updating set with weight', { input: editWeight, units, weightKg });
       const rpeInt = editRpe ? parseInt(editRpe, 10) : null;
       const { error } = await supabase.from('sets').update({
         reps: repsInt,
         partial_reps: partialRepsInt,
-        weight_kg: weightFloat,
+        weight_kg: weightKg,
         rpe: rpeInt,
       }).eq('id', setId);
       if (error) {
@@ -262,7 +275,7 @@ export default function LogSetScreen({ route, navigation }: { route: any; naviga
         placeholder="e.g. 1"
       />
       <TextInput
-        label="Weight (kg)"
+        label={`Weight (${units})`}
         value={weight}
         onChangeText={setWeight}
         keyboardType="numeric"
@@ -303,7 +316,7 @@ export default function LogSetScreen({ route, navigation }: { route: any; naviga
                 style={{ marginBottom: 4 }}
               />
               <TextInput
-                label="Weight (kg)"
+                label={`Weight (${units})`}
                 value={editWeight}
                 onChangeText={setEditWeight}
                 keyboardType="numeric"
@@ -323,17 +336,24 @@ export default function LogSetScreen({ route, navigation }: { route: any; naviga
               </View>
             </View>
           ) : (
-            <List.Item
-              title={`Reps: ${item.reps}${item.partial_reps ? ` + ${item.partial_reps} partial` : ''}, Weight: ${item.weight_kg}kg${item.rpe ? `, RPE: ${item.rpe}` : ''}`}
-              description={item.created_at ? new Date(item.created_at).toLocaleTimeString() : ''}
-              left={props => <List.Icon {...props} icon="check" />}
-              right={props => (
-                <View style={{ flexDirection: 'row' }}>
-                  <Button mode="text" onPress={() => startEditSet(item)}>Edit</Button>
-                  <Button mode="text" onPress={() => confirmDeleteSet(item.id)} color="red">Delete</Button>
-                </View>
-              )}
-            />
+            (() => {
+              const displayWeight = units === 'lb'
+                ? (item.weight_kg / 0.45359237).toFixed(1)
+                : item.weight_kg.toFixed(1);
+              return (
+                <List.Item
+                  title={`Reps: ${item.reps}${item.partial_reps ? ` + ${item.partial_reps} partial` : ''}, Weight: ${displayWeight}${units}${item.rpe ? `, RPE: ${item.rpe}` : ''}`}
+                  description={item.created_at ? new Date(item.created_at).toLocaleTimeString() : ''}
+                  left={props => <List.Icon {...props} icon="check" />}
+                  right={props => (
+                    <View style={{ flexDirection: 'row' }}>
+                      <Button mode="text" onPress={() => startEditSet(item)}>Edit</Button>
+                      <Button mode="text" onPress={() => confirmDeleteSet(item.id)} color="red">Delete</Button>
+                    </View>
+                  )}
+                />
+              );
+            })()
           )
         )}
         ListEmptyComponent={<Text>No sets logged yet.</Text>}

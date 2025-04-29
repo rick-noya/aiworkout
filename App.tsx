@@ -24,6 +24,8 @@ import CreateWorkoutScreen from "./src/components/CreateWorkoutScreen";
 import EditTargetsScreen from "./src/components/EditTargetsScreen";
 import WorkoutSummaryScreen from "./src/components/WorkoutSummaryScreen";
 import WorkoutDetailScreen from "./src/components/WorkoutDetailScreen";
+import SettingsScreen from "./src/components/SettingsScreen";
+import { UnitsProvider } from "./src/components/UnitsContext";
 
 const Stack = createNativeStackNavigator();
 const TIME_OPTIONS = [30, 45, 60, 90, 120];
@@ -204,115 +206,122 @@ export default function App() {
   return (
     <PaperProvider theme={MD3DarkTheme}>
       <SafeAreaProvider>
-        <NavigationContainer
-          linking={linking}
-          fallback={<Text>Loading...</Text>}
-        >
-          <Stack.Navigator
-            screenOptions={{
-              header: (props) => (
-                <>
-                  <Appbar.Header>
-                    <Appbar.Content
-                      title={props.options.title || "AiWeightTrainer"}
-                    />
-                    {showDone ? (
-                      <Text
-                        style={{
-                          color: "#4CAF50",
-                          fontWeight: "bold",
-                          marginRight: 8,
-                        }}
-                      >
-                        Done!
-                      </Text>
-                    ) : timerRunning && timerValue > 0 ? (
-                      timerPaused ? (
-                        <>
-                          <IconButton
-                            icon="play"
-                            onPress={handleResume}
-                            accessibilityLabel="Resume timer"
-                          />
-                          <IconButton
-                            icon="close"
-                            onPress={handleStop}
-                            accessibilityLabel="Stop timer"
-                          />
-                        </>
-                      ) : (
+        <UnitsProvider>
+          <NavigationContainer
+            linking={linking}
+            fallback={<Text>Loading...</Text>}
+          >
+            <Stack.Navigator
+              screenOptions={{
+                header: (props) => (
+                  <>
+                    <Appbar.Header>
+                      <Appbar.Content
+                        title={props.options.title || "AiWeightTrainer"}
+                      />
+                      {showDone ? (
                         <Text
                           style={{
-                            color: "#BB86FC",
+                            color: "#4CAF50",
                             fontWeight: "bold",
                             marginRight: 8,
                           }}
-                          onPress={handlePause}
-                          accessibilityRole="button"
                         >
-                          {timerValue}s
+                          Done!
                         </Text>
-                      )
-                    ) : null}
-                    <Appbar.Action
-                      icon="timer"
-                      onPress={() => setTimerVisible(true)}
-                    />
-                  </Appbar.Header>
-                  <Portal>
-                    <TimerModal
-                      visible={timerVisible}
-                      onDismiss={() => setTimerVisible(false)}
-                      onStart={handleTimerStart}
-                      initialTime={timerValue || TIME_OPTIONS[0]}
-                    />
-                  </Portal>
-                </>
-              ),
-            }}
-          >
-            <Stack.Screen
-              name="Main"
-              component={MainScreen}
-              options={{ title: "AiWeightTrainer" }}
-            />
-            <Stack.Screen
-              name="CreateWorkout"
-              component={CreateWorkoutScreen}
-              options={{ title: "Create Workout" }}
-            />
-            <Stack.Screen
-              name="ExerciseSelect"
-              component={ExerciseSelectScreen}
-              options={{ title: "Select Exercise" }}
-            />
-            <Stack.Screen
-              name="LogSet"
-              component={LogSetScreen}
-              options={{ title: "Log Set" }}
-            />
-            <Stack.Screen
-              name="ResetPassword"
-              component={ResetPasswordScreen}
-              options={{ title: "Reset Password" }}
-            />
-            <Stack.Screen
-              name="EditTargets"
-              component={EditTargetsScreen}
-              options={{ title: "Edit Targets" }}
-            />
-            <Stack.Screen
-              name="WorkoutSummary"
-              component={WorkoutSummaryScreen}
-              options={{ title: "Workout Summary" }}
-            />
-            <Stack.Screen
-              name="WorkoutDetail"
-              component={WorkoutDetailScreen}
-              options={{ title: "Workout Details" }}
-            />
-          </Stack.Navigator>
-        </NavigationContainer>
+                      ) : timerRunning && timerValue > 0 ? (
+                        timerPaused ? (
+                          <>
+                            <IconButton
+                              icon="play"
+                              onPress={handleResume}
+                              accessibilityLabel="Resume timer"
+                            />
+                            <IconButton
+                              icon="close"
+                              onPress={handleStop}
+                              accessibilityLabel="Stop timer"
+                            />
+                          </>
+                        ) : (
+                          <Text
+                            style={{
+                              color: "#BB86FC",
+                              fontWeight: "bold",
+                              marginRight: 8,
+                            }}
+                            onPress={handlePause}
+                            accessibilityRole="button"
+                          >
+                            {timerValue}s
+                          </Text>
+                        )
+                      ) : null}
+                      <Appbar.Action
+                        icon="timer"
+                        onPress={() => setTimerVisible(true)}
+                      />
+                    </Appbar.Header>
+                    <Portal>
+                      <TimerModal
+                        visible={timerVisible}
+                        onDismiss={() => setTimerVisible(false)}
+                        onStart={handleTimerStart}
+                        initialTime={timerValue || TIME_OPTIONS[0]}
+                      />
+                    </Portal>
+                  </>
+                ),
+              }}
+            >
+              <Stack.Screen
+                name="Main"
+                component={MainScreen}
+                options={{ title: "AiWeightTrainer" }}
+              />
+              <Stack.Screen
+                name="CreateWorkout"
+                component={CreateWorkoutScreen}
+                options={{ title: "Create Workout" }}
+              />
+              <Stack.Screen
+                name="ExerciseSelect"
+                component={ExerciseSelectScreen}
+                options={{ title: "Select Exercise" }}
+              />
+              <Stack.Screen
+                name="LogSet"
+                component={LogSetScreen}
+                options={{ title: "Log Set" }}
+              />
+              <Stack.Screen
+                name="ResetPassword"
+                component={ResetPasswordScreen}
+                options={{ title: "Reset Password" }}
+              />
+              <Stack.Screen
+                name="EditTargets"
+                component={EditTargetsScreen}
+                options={{ title: "Edit Targets" }}
+              />
+              <Stack.Screen
+                name="WorkoutSummary"
+                component={WorkoutSummaryScreen}
+                options={{ title: "Workout Summary" }}
+              />
+              <Stack.Screen
+                name="WorkoutDetail"
+                component={WorkoutDetailScreen}
+                options={{ title: "Workout Details" }}
+              />
+              <Stack.Screen
+                name="Settings"
+                component={SettingsScreen}
+                options={{ title: "Settings" }}
+              />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </UnitsProvider>
       </SafeAreaProvider>
     </PaperProvider>
   );

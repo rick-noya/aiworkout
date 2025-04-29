@@ -3,11 +3,17 @@ import { useState } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { Text, Button, MD3DarkTheme, ActivityIndicator } from 'react-native-paper';
 import { supabase } from '../lib/supabase';
+import { useUnits } from './UnitsContext';
 
 export default function WorkoutSummaryScreen({ route, navigation }: { route: any; navigation: any }) {
   const { selectedExercises, exerciseTargets, workoutId, date } = route.params;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { units, loading: unitsLoading } = useUnits();
+
+  React.useEffect(() => {
+    console.log('WorkoutSummaryScreen: units context', { units, unitsLoading });
+  }, [units, unitsLoading]);
 
   const handleConfirm = async () => {
     setSaving(true);
@@ -15,15 +21,18 @@ export default function WorkoutSummaryScreen({ route, navigation }: { route: any
     try {
       const inserts = selectedExercises.map((exercise: any) => {
         const t = exerciseTargets[exercise.id] || {};
-        return {
+        const weightFloat = t.target_weight ? parseFloat(t.target_weight) : null;
+        const weightKg = weightFloat && units === 'lb' ? weightFloat * 0.45359237 : weightFloat;
+        const insertObj = {
           workout_id: workoutId,
           exercise_id: exercise.id,
           target_reps_min: t.target_reps_min ? parseInt(t.target_reps_min, 10) : null,
           target_reps_max: t.target_reps_max ? parseInt(t.target_reps_max, 10) : null,
-          target_weight: t.target_weight ? parseFloat(t.target_weight) : null,
-          target_rpe_min: t.target_rpe_min ? parseFloat(t.target_rpe_min) : null,
-          target_rpe_max: t.target_rpe_max ? parseFloat(t.target_rpe_max) : null,
+          target_weight: weightKg,
+          target_rpe: t.target_rpe ? parseFloat(t.target_rpe) : null,
         };
+        console.log('WorkoutSummaryScreen: Insert object for workout_exercises', { input: t.target_weight, units, weightKg, insertObj });
+        return insertObj;
       });
       console.log('WorkoutSummaryScreen: Saving workout_exercises', inserts);
       const { error: insertError } = await supabase.from('workout_exercises').insert(inserts);
@@ -57,8 +66,8 @@ export default function WorkoutSummaryScreen({ route, navigation }: { route: any
             <View style={styles.exerciseRow}>
               <Text style={{ fontWeight: 'bold' }}>{item.name}</Text>
               <Text>Reps: {t.target_reps_min} - {t.target_reps_max}</Text>
-              <Text>Weight: {t.target_weight} kg</Text>
-              <Text>RPE: {t.target_rpe_min} - {t.target_rpe_max}</Text>
+              <Text>Weight: {t.target_weight} {units}</Text>
+              <Text>RPE: {t.target_rpe} {units}</Text>
             </View>
           );
         }}
